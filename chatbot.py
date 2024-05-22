@@ -27,8 +27,10 @@ from typing import List
 from langchain.chains import LLMChain
 from langchain.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
+from langchain_pinecone import PineconeVectorStore
 from pydantic import BaseModel, Field
 import dotenv
+import os
 
 # Create classes needed for MultiQueryRetrieval with custom prompt
 # Output parser will split the LLM result into a list of queries
@@ -58,7 +60,11 @@ st.set_page_config(
 # carga variables de entorno de .env
 dotenv.load_dotenv()
 
-#define funciones iniciales de procesamiento de texto
+### DEFINICION DE FUNCIONES
+
+# define funciones iniciales de procesamiento de texto
+
+# extrae texto de PDF
 def get_pdf_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
@@ -67,6 +73,7 @@ def get_pdf_text(pdf_docs):
             text += page.extract_text()
     return text
 
+# extrae text chunks (pedazos de texto)
 def get_text_chunks(text):
     text_splitter = CharacterTextSplitter(
         separator='(-*\s*\nPag\s*\d+)',
@@ -76,11 +83,19 @@ def get_text_chunks(text):
     chunks = text_splitter.create_documents([text])
     return chunks
 
+# vector store chromadb
 def get_vector_store(text_chunks):
     Chroma.from_documents(documents=text_chunks,
                           embedding=OpenAIEmbeddings(), 
                           persist_directory="./chroma_db",
                           )
+    
+# vector store pinecone
+def vector_store_pinecone(text_chunks):
+    PineconeVectorStore.from_documents(
+        documents=text_chunks, 
+        embedding=OpenAIEmbeddings(), 
+        index_name=os.getenv('PINECONE_INDEX_NAME'))
 
 # crea la barra lateral
 with st.sidebar:
@@ -94,7 +109,8 @@ with st.sidebar:
             with st.spinner("Procesando..."):
                 raw_text = get_pdf_text(pdf_docs)
                 text_chunks = get_text_chunks(raw_text)
-                get_vector_store(text_chunks)
+                # get_vector_store(text_chunks)
+                vector_store_pinecone(text_chunks)
                 st.success("Documento procesado")
 
 
@@ -155,7 +171,7 @@ def main():
 
     user_question = st.text_input("Realice una pregunta acerca de los manuales", key="user_question")
 
-    if user_question:  # Ensure API key and user question are provided
+    if user_question:
         user_input(user_question)
 
 if __name__ == "__main__":
