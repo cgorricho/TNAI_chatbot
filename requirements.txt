@@ -1,7 +1,7 @@
 redis
 redisvl
 langchain-pinecone
-pysqlite3-binary
+# pysqlite3-binary
 tiktoken
 PyPDF2
 langchain
